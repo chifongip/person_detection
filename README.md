@@ -62,6 +62,7 @@ pip install pyrealsense2
 ```  
 
 ## Parameters 
+### yolo_detector:
 - **weight_path:** path to the weight file.
 - **info_topic:** camera_info topic of the depth camera.
 - **depth_topic:** depth image topic.
@@ -69,6 +70,11 @@ pip install pyrealsense2
 - **conf:** sets the minimum confidence threshold for detections.
 - **imgsz:** defines the image size for inference.
 - **use_cpu:** specifies the device for inference.
+
+### Camera Settings:
+depth image width: 640; height: 480; fps: 15  
+color image width: 640; height: 480; fps: 15  
+IR width: 640; height: 480; fps: 15  
 
 ## Usage
 ```
