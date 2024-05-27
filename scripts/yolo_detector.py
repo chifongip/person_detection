@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys 
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -11,6 +12,9 @@ import rospy
 from sensor_msgs.msg import CameraInfo, Image
 from yolo_v8_ros_msgs.msg import BoundingBoxes, BoundingBox
 
+_noise_limit = 100
+_diff = 500
+_bin = [i * _diff for i in range(0, 9)]
 
 class yoloDetector:
     def __init__(self) -> None:
@@ -82,12 +86,20 @@ class yoloDetector:
         color_image = np.frombuffer(msg.data, dtype=np.uint8).reshape(msg.height, msg.width, -1)
         color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
-        results = self.model.predict(color_image, 
+        # results = self.model.predict(color_image, 
+        #                             show=False, 
+        #                             verbose=False, 
+        #                             conf=self.conf, 
+        #                             imgsz=self.imgsz, 
+        #                             device=self.device)
+
+        results = self.model.track(color_image, 
                                     show=False, 
                                     verbose=False, 
                                     conf=self.conf, 
                                     imgsz=self.imgsz, 
-                                    device=self.device)
+                                    device=self.device,
+                                    tracker="botsort.yaml")
 
         self.detectResult(results, msg.header.stamp, msg.header.frame_id, msg.height, msg.width)
 
@@ -104,11 +116,17 @@ class yoloDetector:
         bounding_boxes.image_header.stamp = image_stamp
         bounding_boxes.image_header.frame_id = frame_id
 
+        # line = ''
+
         for result in results[0].boxes:
             if results[0].names[result.cls.item()] == "person":
                 bounding_box = BoundingBox()
                 bounding_box.object_class = results[0].names[result.cls.item()]
                 bounding_box.confidence = result.conf.item()
+                try:
+                    bounding_box.id = np.int64(result.id[0].item())
+                except:
+                    pass
                 bounding_box.xmin = np.int64(result.xyxy[0][0].item())
                 bounding_box.ymin = np.int64(result.xyxy[0][1].item())
                 bounding_box.xmax = np.int64(result.xyxy[0][2].item())
@@ -117,17 +135,30 @@ class yoloDetector:
                 pix = ((bounding_box.xmin + bounding_box.xmax) // 2, (bounding_box.ymin + bounding_box.ymax) // 2)
                 depth = self.depth_image[pix[1], pix[0]]
                 xyz_optical = rs2.rs2_deproject_pixel_to_point(self.intrinsics, [pix[0], pix[1]], depth)
-
-                # roi = self.depth_image[bounding_box.ymin:bounding_box.ymax, bounding_box.xmin:bounding_box.xmax]
+                
+                roi = self.depth_image[bounding_box.ymin:bounding_box.ymax, bounding_box.xmin:bounding_box.xmax]
+                hist, bins = np.histogram(roi.flatten(), bins=_bin, density=True)
+                max_bin = hist.argmax() + 1
+                filtered_depth, _size = self.filter_background(roi, max_bin * _diff)
+                if _size:
+                    avg_depth = filtered_depth.sum() / _size 
+                else:
+                    avg_depth = 0
 
                 bounding_box.x = xyz_optical[0] / 1000
                 bounding_box.y = xyz_optical[1] / 1000
-                bounding_box.z = xyz_optical[2] / 1000
+                # bounding_box.z = xyz_optical[2] / 1000
+                bounding_box.z = avg_depth / 1000
                 bounding_boxes.bounding_boxes.append(bounding_box)
+
+                # line += '\rX: %f, Y: %f , Z: %f\r'% (bounding_box.x, bounding_box.y, bounding_box.z)
 
                 cv2.circle(frame, (pix[0], pix[1]), radius=0, color=(0, 0, 255), thickness=5)
 
         self.bbox_pub.publish(bounding_boxes)
+
+        # sys.stdout.write(line)
+        # sys.stdout.flush()
 
         image_temp = Image()
         image_temp.header.stamp = image_stamp
@@ -138,6 +169,19 @@ class yoloDetector:
         image_temp.data = np.array(frame).tobytes()
         image_temp.step = width * 3
         self.image_pub.publish(image_temp)
+
+
+    def filter_background(self, roi, max_depth=4000):
+        # Anything further than 4000mm, we consider it as background
+        # Anything less than 100mm is consider noise
+        ret_val = np.ma.masked_greater(roi, max_depth)
+        ret_val = np.ma.masked_less(ret_val, _noise_limit)
+        unique, counts = np.unique(ret_val.mask, return_counts=True)
+        _dict = dict(zip(unique, counts))
+        if False in _dict:
+            return ret_val, _dict[False]
+        else:
+            return ret_val, 0
 
         
 if __name__ == '__main__':

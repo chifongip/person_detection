@@ -21,7 +21,7 @@ class markerArray:
                 marker.header.stamp = rospy.Time.now()
                 marker.header.frame_id = "camera_depth_optical_frame"
                 marker.ns = "person"
-                # marker.id = bbox.id
+                marker.id = bbox.id
                 marker.type = 2
                 marker.action = 0
                 marker.pose.position.x = bbox.x
