@@ -8,7 +8,7 @@
 		<param name="depth_topic"       value="/camera/depth/image_rect_raw" />
 		<param name="image_topic"       value="/camera/color/image_raw" />
 		<param name="conf"              value="0.6" />
-		<param name="imgsz"             value="320" />
+		<param name="imgsz"             value="640" />
 		<param name="use_cpu"           value="true" />
 	</node>
 

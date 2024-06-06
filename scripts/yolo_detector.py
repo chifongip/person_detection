@@ -98,7 +98,8 @@ class yoloDetector:
                                     verbose=False, 
                                     conf=self.conf, 
                                     imgsz=self.imgsz, 
-                                    device=self.device,
+                                    device=self.device, 
+                                    persist=True, 
                                     tracker="botsort.yaml")
 
         self.detectResult(results, msg.header.stamp, msg.header.frame_id, msg.height, msg.width)
