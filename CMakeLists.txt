@@ -168,6 +168,10 @@ catkin_install_python(PROGRAMS
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 catkin_install_python(PROGRAMS
+  scripts/yolo_detector_seg.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+catkin_install_python(PROGRAMS
   scripts/marker.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
