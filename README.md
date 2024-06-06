@@ -1,6 +1,12 @@
 # person_detection  
 A ROS package for person detection based on YOLOv8 and Intel RealSense depth camera.  
 
+## Environment
+```
+python==3.8.10
+ultralytics==8.2.18
+```
+
 ## Installation  
 ### Clone the related packages
 ```
@@ -78,5 +84,5 @@ IR width: 640; height: 480; fps: 15
 
 ## Usage
 ```
-roslaunch person_detection yolo_detector.launch
+roslaunch person_detection yolo_detector_seg.launch
 ```
