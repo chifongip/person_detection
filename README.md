@@ -86,3 +86,5 @@ IR width: 640; height: 480; fps: 15
 ```
 roslaunch person_detection yolo_detector_seg.launch
 ```
+
+![Results](https://github.com/chifongip/person_detection/blob/main/images/Screenshot%20from%202024-06-07%2013-48-19.png)
