@@ -115,40 +115,42 @@ class yoloDetector:
         bounding_boxes.image_header.frame_id = frame_id
 
         # line = ''
+        if results[0].boxes is not None and results[0].masks is not None:
+            for result_box, result_mask in zip(results[0].boxes, results[0].masks):
+                if results[0].names[result_box.cls.item()] == "person":
+                    bounding_box = BoundingBox()
+                    bounding_box.object_class = results[0].names[result_box.cls.item()]
+                    bounding_box.confidence = result_box.conf.item()
+                    try:
+                        bounding_box.id = np.int64(result_box.id[0].item())
+                    except:
+                        pass
+                    bounding_box.xmin = np.int64(result_box.xyxy[0][0].item())
+                    bounding_box.ymin = np.int64(result_box.xyxy[0][1].item())
+                    bounding_box.xmax = np.int64(result_box.xyxy[0][2].item())
+                    bounding_box.ymax = np.int64(result_box.xyxy[0][3].item())
 
-        for result_box, result_mask in zip(results[0].boxes, results[0].masks):
-            if results[0].names[result_box.cls.item()] == "person":
-                bounding_box = BoundingBox()
-                bounding_box.object_class = results[0].names[result_box.cls.item()]
-                bounding_box.confidence = result_box.conf.item()
-                try:
-                    bounding_box.id = np.int64(result_box.id[0].item())
-                except:
-                    pass
-                bounding_box.xmin = np.int64(result_box.xyxy[0][0].item())
-                bounding_box.ymin = np.int64(result_box.xyxy[0][1].item())
-                bounding_box.xmax = np.int64(result_box.xyxy[0][2].item())
-                bounding_box.ymax = np.int64(result_box.xyxy[0][3].item())
+                    pix = ((bounding_box.xmin + bounding_box.xmax) // 2, (bounding_box.ymin + bounding_box.ymax) // 2)
+                    depth = self.depth_image[pix[1], pix[0]]
+                    xyz_optical = rs2.rs2_deproject_pixel_to_point(self.intrinsics, [pix[0], pix[1]], depth)
+                    
+                    mask_coordinates = result_mask.xy[0]
+                    x_coordinates = mask_coordinates[:, 0].astype(int)
+                    y_coordinates = mask_coordinates[:, 1].astype(int)
+                    valid_indices = (x_coordinates >= 0) & (x_coordinates < self.depth_image.shape[1]) & \
+                                    (y_coordinates >= 0) & (y_coordinates < self.depth_image.shape[0])
+                    depth_list = self.depth_image[y_coordinates[valid_indices], x_coordinates[valid_indices]]
+                    mean_depth = np.mean(depth_list[depth_list > 0]) if len(depth_list[depth_list > 0]) > 0 else 0
 
-                pix = ((bounding_box.xmin + bounding_box.xmax) // 2, (bounding_box.ymin + bounding_box.ymax) // 2)
-                depth = self.depth_image[pix[1], pix[0]]
-                xyz_optical = rs2.rs2_deproject_pixel_to_point(self.intrinsics, [pix[0], pix[1]], depth)
-                
-                mask_coordinates = result_mask.xy[0]
-                x_coordinates = mask_coordinates[:, 0].astype(int)
-                y_coordinates = mask_coordinates[:, 1].astype(int)
-                depth_list = self.depth_image[y_coordinates, x_coordinates]
-                mean_depth = np.mean(depth_list[depth_list > 0])
+                    bounding_box.x = xyz_optical[0] / 1000
+                    bounding_box.y = xyz_optical[1] / 1000
+                    # bounding_box.z = xyz_optical[2] / 1000
+                    bounding_box.z = mean_depth / 1000
+                    bounding_boxes.bounding_boxes.append(bounding_box)
 
-                bounding_box.x = xyz_optical[0] / 1000
-                bounding_box.y = xyz_optical[1] / 1000
-                # bounding_box.z = xyz_optical[2] / 1000
-                bounding_box.z = mean_depth / 1000
-                bounding_boxes.bounding_boxes.append(bounding_box)
+                    # line += '\rX: %f, Y: %f , Z: %f\r'% (bounding_box.x, bounding_box.y, bounding_box.z)
 
-                # line += '\rX: %f, Y: %f , Z: %f\r'% (bounding_box.x, bounding_box.y, bounding_box.z)
-
-                cv2.circle(frame, (pix[0], pix[1]), radius=0, color=(0, 0, 255), thickness=5)
+                    cv2.circle(frame, (pix[0], pix[1]), radius=0, color=(0, 0, 255), thickness=5)
 
         self.bbox_pub.publish(bounding_boxes)
 
