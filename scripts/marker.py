@@ -19,7 +19,7 @@ class markerArray:
             for bbox in msg.bounding_boxes:
                 marker = Marker()
                 marker.header.stamp = rospy.Time.now()
-                marker.header.frame_id = "camera_depth_optical_frame"
+                marker.header.frame_id = msg.header.frame_id
                 marker.ns = "person"
                 marker.id = bbox.id
                 marker.type = 2
